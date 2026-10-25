@@ -1,0 +1,180 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Security Lab</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1220;
+      color: #e5edf9;
+      min-height: 100vh;
+    }
+    header {
+      padding: 28px 20px;
+      text-align: center;
+      background: #111c30;
+      border-bottom: 1px solid #263752;
+    }
+    header h1 { margin: 0 0 10px; color: #67e8f9; }
+    header p { margin: 0; color: #b7c5dc; }
+    main { max-width: 850px; margin: 28px auto; padding: 0 16px; }
+    .card {
+      background: #111c30;
+      border: 1px solid #263752;
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+    h2 { font-size: 19px; margin-top: 0; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+    .item {
+      background: #0b1220;
+      border: 1px solid #263752;
+      border-radius: 10px;
+      padding: 14px;
+      overflow-wrap: anywhere;
+    }
+    .label { color: #9fb1cc; font-size: 13px; margin-bottom: 8px; }
+    .value { font-size: 15px; }
+    .notice {
+      line-height: 1.8;
+      color: #c6d4e8;
+      font-size: 14px;
+    }
+    button {
+      background: #0891b2;
+      color: white;
+      border: 0;
+      border-radius: 9px;
+      padding: 13px 18px;
+      cursor: pointer;
+      font-size: 15px;
+      margin: 5px 0;
+    }
+    button:disabled { opacity: .6; cursor: wait; }
+    #status { margin-top: 12px; line-height: 1.7; }
+    footer { text-align: center; padding: 24px; color: #8192ac; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Device Security Lab</h1>
+    <p>مختبر تعليمي لتحليل معلومات المتصفح والجهاز</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>حول الاختبار</h2>
+      <p class="notice">
+        تعرض هذه الصفحة معلومات تقنية يتيحها المتصفح، مثل نوع المتصفح
+        واللغة ودقة الشاشة والمنطقة الزمنية. عند اختيار إرسال التقرير،
+        تُرسل هذه المعلومات وبيانات الاتصال التي يراها الخادم إلى خادم
+        الاختبار وبوت تيليجرام المرتبط به. لا تجمع الصفحة الصور أو جهات
+        الاتصال أو الرسائل أو رقم الهاتف.
+      </p>
+      <label class="notice">
+        <input type="checkbox" id="consent">
+        أوافق على إرسال المعلومات التقنية الموضحة أعلاه إلى خادم الاختبار.
+      </label>
+      <div>
+        <button id="sendBtn" disabled>إرسال التقرير إلى تيليجرام</button>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card">
+      <h2>معلومات الجهاز المتاحة</h2>
+      <div class="grid" id="details"></div>
+    </section>
+  </main>
+
+  <footer>Device Security Lab · مشروع تعليمي للأمن السيبراني</footer>
+
+  <script>
+    const details = document.getElementById("details");
+    const consent = document.getElementById("consent");
+    const sendBtn = document.getElementById("sendBtn");
+    const status = document.getElementById("status");
+
+    const ua = navigator.userAgent || "غير متاح";
+    const data = {
+      browser: ua,
+      language: navigator.language || "غير متاح",
+      screen: `${screen.width} × ${screen.height}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "غير متاح",
+      deviceMemory: navigator.deviceMemory
+        ? `${navigator.deviceMemory} GB تقريبًا`
+        : "غير متاح",
+      logicalCores: navigator.hardwareConcurrency || "غير متاح"
+    };
+
+    const items = [
+      ["المتصفح ونظام التشغيل", data.browser],
+      ["لغة المتصفح", data.language],
+      ["دقة الشاشة", data.screen],
+      ["المنطقة الزمنية", data.timezone],
+      ["الذاكرة التقريبية", data.deviceMemory],
+      ["أنوية المعالج المنطقية", data.logicalCores],
+      ["أبعاد نافذة الصفحة", `${innerWidth} × ${innerHeight}`],
+      ["عمق ألوان الشاشة", `${screen.colorDepth} bit`]
+    ];
+
+    for (const [label, value] of items) {
+      const card = document.createElement("div");
+      card.className = "item";
+
+      const title = document.createElement("div");
+      title.className = "label";
+      title.textContent = label;
+
+      const content = document.createElement("div");
+      content.className = "value";
+      content.textContent = value;
+
+      card.append(title, content);
+      details.appendChild(card);
+    }
+
+    consent.addEventListener("change", () => {
+      sendBtn.disabled = !consent.checked;
+    });
+
+    sendBtn.addEventListener("click", async () => {
+      if (!consent.checked) return;
+
+      sendBtn.disabled = true;
+      status.textContent = "جارٍ إرسال التقرير...";
+
+      try {
+        const response = await fetch("/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            consent: true,
+            ...data
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error("تعذر إرسال التقرير. تحقق من إعداد الخادم.");
+        }
+
+        status.textContent = "تم إرسال التقرير بنجاح.";
+      } catch (error) {
+        status.textContent = error.message || "حدث خطأ أثناء الإرسال.";
+      } finally {
+        sendBtn.disabled = !consent.checked;
+      }
+    });
+  </script>
+</body>
+</html>
